@@ -5,8 +5,8 @@ ti.init(debug=True)
 
 particles_limit = 256
 mass = 1
-ground_y = 0.05
-conn_range = 0.15
+ground_y = 0.1
+conn_range = 0.1
 G = ti.Vector([0, -9.81])
 dt = 1e-3
 
@@ -24,7 +24,8 @@ rest_length = ti.var(ti.f32, shape=(particles_limit, particles_limit))
 fixed = ti.var(ti.i32, shape=particles_limit)
 
 stiffness[None] = 10000
-damping[None] = 0
+damping[None] = 15
+paused = False
 
 
 @ti.kernel
@@ -64,9 +65,10 @@ def make_node(pos_x: ti.f32, pos_y: ti.f32, is_fixed: ti.i32):
     num_particles[None] += 1
 
     for i in range(curr):
-        if (x[curr] - x[i]).norm() <= conn_range:
-            rest_length[i, curr] = 0.1
-            rest_length[curr, i] = 0.1
+        dist = (x[curr] - x[i]).norm()
+        if dist <= conn_range:
+            rest_length[i, curr] = dist
+            rest_length[curr, i] = dist
 
 
 gui = ti.GUI('Mass Spring', res=(720, 720), background_color=0x000000)
@@ -77,9 +79,12 @@ while True:
             exit()
         elif e.key == ti.GUI.LMB and num_particles[None] < particles_limit:
             make_node(e.pos[0], e.pos[1], gui.is_pressed('Shift'))
+        elif e.key == gui.SPACE:
+            paused = not paused
 
-    for _ in range(10):
-        update()
+    if not paused:
+        for _ in range(10):
+            update()
 
     nodes = x.to_numpy()[: num_particles[None]]
     fix_status = fixed.to_numpy()[: num_particles[None]]
@@ -99,8 +104,14 @@ while True:
     gui.line(
         begin=(0.0, ground_y),
         end=(1.0, ground_y),
-        color=0xFFFFFF,
         radius=1
     )
+
+    if paused:
+        gui.text(
+            content='PAUSED',
+            pos=(0.05, 0.95),
+            font_size=20
+        )
 
     gui.show()
