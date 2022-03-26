@@ -1,7 +1,7 @@
 import taichi as ti
 
 
-ti.init(arch=ti.opengl)
+ti.init(debug=True)
 
 n = 360
 pixels = ti.var(dt=ti.f32, shape=(n * 2, n))
@@ -23,12 +23,16 @@ def update(t: ti.f32):
             z = complex_sqr(z) + const
             curr += 1
 
-        pixels[i, j] = 1 - curr * 0.02
+        pixels[i, j] = curr * 0.02
 
 i = 0
 gui = ti.GUI("Julia Set", res=(n * 2, n))
 
 while True:
+    for e in gui.get_events(ti.GUI.PRESS):
+        if e.key in [ti.GUI.ESCAPE, ti.GUI.EXIT]:
+            exit()
+
     update(i)
     gui.set_image(pixels)
     gui.show()
