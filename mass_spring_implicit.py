@@ -10,15 +10,19 @@ conn_range = 0.1
 G = ti.Vector([0, -9.81])
 dt = 1e-3
 
-num_particles = ti.var(dt=ti.i32, shape=())
-stiffness = ti.var(dt=ti.f32, shape=())
-damping = ti.var(dt=ti.f32, shape=())
+num_particles = ti.field(ti.i32, shape=())
+stiffness = ti.field(ti.f32, shape=())
+damping = ti.field(ti.f32, shape=())
 
-x = ti.Vector(2, dt=ti.f32, shape=particles_limit)
-v = ti.Vector(2, dt=ti.f32, shape=particles_limit)
+x = ti.Vector.field(2, ti.f32, shape=particles_limit, needs_grad=True)
+v = ti.Vector.field(2, ti.f32, shape=particles_limit)
 
-rest_length = ti.var(ti.f32, shape=(particles_limit, particles_limit))
-fixed = ti.var(ti.i32, shape=particles_limit)
+A = ti.Matrix.field(2, 2, ti.f32, shape=(particles_limit, particles_limit))
+b = ti.Vector.field(2, ti.f32, shape=particles_limit)
+forces = ti.Vector.field(2, ti.f32, shape=particles_limit, needs_grad=True)
+
+rest_length = ti.field(ti.f32, shape=(particles_limit, particles_limit))
+fixed = ti.field(ti.i32, shape=particles_limit)
 
 stiffness[None] = 10000
 damping[None] = 15
@@ -26,31 +30,28 @@ paused = False
 
 
 @ti.kernel
-def update():
-    n = num_particles[None]
-    for i in range(n):
+def init_grad():
+    for i in range(num_particles[None]):
+        forces.grad[i] = [1, 1]
 
-        v[i] *= ti.exp(-dt * damping)
-        force = G * mass
 
-        for j in range(n):
-            if rest_length[i, j] == 0:
-                continue
-
+@ti.kernel
+def get_force(n: ti.i32):
+    for i, j in ti.ndrange(n, n):
+        if rest_length[i, j] != 0:
             ij = x[j] - x[i]
             magnitude = stiffness[None] * (ij.norm() - rest_length[i, j])
-            force += magnitude * ij.normalized()
+            forces[i] += magnitude * ij.normalized()
 
-        v[i] += force / mass * dt
 
-    for i in range(n):
-        if x[i][1] < ground_y:
-            x[i][1] = ground_y
-            v[i][1] = 0
+@ti.kernel
+def init_update():
+    n = num_particles[None]
 
     for i in range(n):
-        if not fixed[i]:
-            x[i] += v[i] * dt
+        grad = x.grad[i]
+
+        b[i] = v[i] + dt * forces[i]
 
 
 @ti.kernel
@@ -80,8 +81,14 @@ while True:
             paused = not paused
 
     if not paused:
-        for _ in range(10):
-            update()
+        init_grad()
+
+        n = num_particles[None]
+        get_force(n)
+        get_force.grad(n)
+        print(x.grad[0])
+
+        init_update()
 
     nodes = x.to_numpy()[: num_particles[None]]
     fix_status = fixed.to_numpy()[: num_particles[None]]
