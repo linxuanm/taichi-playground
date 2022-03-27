@@ -19,6 +19,7 @@ v = ti.Vector.field(2, ti.f32, shape=particles_limit)
 
 A = ti.Matrix.field(2, 2, ti.f32, shape=(particles_limit, particles_limit))
 b = ti.Vector.field(2, ti.f32, shape=particles_limit)
+
 forces = ti.Vector.field(2, ti.f32, shape=particles_limit, needs_grad=True)
 
 rest_length = ti.field(ti.f32, shape=(particles_limit, particles_limit))
@@ -31,6 +32,9 @@ paused = False
 
 @ti.kernel
 def init_grad():
+    for i in range(num_particles[None]):
+        forces[i] = [0, 0]
+
     for i in range(num_particles[None]):
         forces.grad[i] = [1, 1]
 

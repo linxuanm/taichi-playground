@@ -4,7 +4,7 @@ import taichi as ti
 ti.init(debug=True)
 
 dt = 1e-5
-planets_limit = 20
+planets_limit = 128
 
 num_planets = ti.field(ti.i32, shape=())
 
@@ -17,7 +17,7 @@ potential = ti.field(ti.f32, shape=(), needs_grad=True)
 def compute_potential(n: ti.i32):
     for i, j in ti.ndrange(n, n):
         dist = (x[i] - x[j]).norm(1e-3)
-        potential[None] += -2 / dist
+        potential[None] += -1 / dist
 
 
 @ti.kernel
@@ -54,5 +54,5 @@ while gui.running:
 
     for i in range(50):
         step()
-    gui.circles(x.to_numpy(), radius=10)
+    gui.circles(x.to_numpy(), radius=3)
     gui.show()
