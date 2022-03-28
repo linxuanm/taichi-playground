@@ -71,3 +71,71 @@ class Sphere(SceneObject):
                 hit_normal = -hit_normal
 
         return hit, hit_pos, hit_normal
+
+
+@ti.data_oriented
+class Scene:
+
+    def __init__(self):
+        self.objs = []
+
+    def add(self, obj):
+        self.objs.append(obj)
+
+    @ti.func
+    def get_ray_hit(self, ray):
+        closest = ray.t_max
+        hit = False
+        hit_pos = ti.Vector([0.0, 0.0, 0.0])
+        hit_normal = ti.Vector([0.0, 0.0, 0.0])
+
+        for i in self.objs:
+            curr_hit, curr_hit_pos, curr_hit_normal = i.hit_ray(ray):
+
+            if curr_hit:
+                hit = curr_hit
+                hit_pos = curr_hit_pos
+                hit_normal = curr_hit_normal
+
+        return hit, hit_pos, hit_normal
+
+
+@ti.data_oriented
+class Camera:
+
+    def __init__(pos, view_dir, fov=60.0, aspect_ratio=1.0):
+        self.fov = fov
+        self.ratio = aspect_ratio
+
+        self.pos = ti.Vector.field(3, ti.f32, shape=())
+        self.direction = ti.Vector.field(3, ti.f32, shape=())
+        self.lower_left = ti.Vector.field(3, ti.f32, shape=())
+
+        self.u_dir = ti.Vector.field(3, ti.f32, shape=())
+        self.v_dir = ti.Vector.field(3, ti.f32, shape=())
+
+        self.initialize(pos, view_dir)
+
+    @ti.kernel
+    def initialize(self, pos, view_dir):
+        self.pos[None] = pos
+        self.direction[None] = view_dir
+
+        angle = self.fov / 180 * 3.14159265
+        half_height = ti.tan(angle / 2)
+        half_width = self.ratio * half_height
+
+        right = self.direction[None].cross(UP).normalize()
+        up = right.cross(self.direction[None])
+
+        offset = -half_height * up - half_width * right
+        self.lower_left[None] = self.pos[None] + offset
+
+        self.u_dir[None] = 2 * half_width * right
+        self.v_dir[None] = 2 * half_width * up
+
+    @ti.func
+    def get_camera_ray(self, u, v):
+        offset = u * self.u_dir[None] + v * self.v_dir[None]
+        direction = self.lower_left[None] + offset
+        return Ray(self.pos, direction)
