@@ -6,12 +6,12 @@ MAT_DIFFUSE = 1
 MAT_DIELECTRIC = 2
 MAT_METAL = 3
 
-UP = ti.Vector([0, 1, 0], dt=ti.f32)
+UP = ti.Vector([0.0, 1.0, 0.0])
 
 
 @ti.func
 def zero():
-    return ti.Vector([0, 0, 0], dt=ti.f32)
+    return ti.Vector([0.0, 0.0, 0.0])
 
 
 @ti.data_oriented
@@ -53,11 +53,11 @@ class Sphere(SceneObject):
         to_origin = ray.origin - self.pos
 
         a = ray.direction.dot(ray.direction)
-        b = 2 * ray.direction.dot(to_origin)
+        b = 2.0 * ray.direction.dot(to_origin)
         c = to_origin.dot(to_origin) - self.radius * self.radius
 
-        discrim = b * b - 4 * a * c
-        root = 0
+        discrim = b * b - 4.0 * a * c
+        root = 0.0
 
         hit = False
         hit_pos = zero()
@@ -65,10 +65,10 @@ class Sphere(SceneObject):
 
         if discrim > 0: # ignore = 0 cuz artifacts
             offset = ti.sqrt(discrim)
-            root = (-b - offset) / (2 * a) # starts off with closer solution
+            root = (-b - offset) / (2.0 * a) # starts off with closer solution
 
             if root < ray.t_min or root > ray.t_max:
-                root = (-b + offset) / (2 * a)
+                root = (-b + offset) / (2.0 * a)
                 if root >= ray.t_min and root <= ray.t_max:
                     hit = True
 
@@ -107,12 +107,15 @@ class Scene:
             curr_hit, curr_hit_pos, curr_hit_normal, curr_mat, curr_color = \
                 self.objs[i].hit_ray(ray)
 
-            if curr_hit:
+            dist = (curr_hit_pos - ray.origin).norm()
+            if curr_hit and dist < closest:
                 hit = curr_hit
                 hit_pos = curr_hit_pos
                 hit_normal = curr_hit_normal
                 mat = curr_mat
                 color = curr_color
+
+                closest = dist
 
         return hit, hit_pos, hit_normal, mat, color
 
@@ -147,8 +150,8 @@ class Camera:
         offset = -half_height * up - half_width * right
         self.lower_left[None] = self.pos[None] + self.direction[None] + offset
 
-        self.u_dir[None] = 2 * half_width * right
-        self.v_dir[None] = 2 * half_width * up
+        self.u_dir[None] = 2.0 * half_width * right
+        self.v_dir[None] = 2.0 * half_width * up
 
     @ti.func
     def get_camera_ray(self, u, v):
