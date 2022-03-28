@@ -10,15 +10,15 @@ conn_range = 0.1
 G = ti.Vector([0, -9.81])
 dt = 1e-3
 
-num_particles = ti.var(dt=ti.i32, shape=())
-stiffness = ti.var(dt=ti.f32, shape=())
-damping = ti.var(dt=ti.f32, shape=())
+num_particles = ti.field(ti.i32, shape=())
+stiffness = ti.field(ti.f32, shape=())
+damping = ti.field(ti.f32, shape=())
 
-x = ti.Vector(2, dt=ti.f32, shape=particles_limit)
-v = ti.Vector(2, dt=ti.f32, shape=particles_limit)
+x = ti.Vector.field(2, ti.f32, shape=particles_limit)
+v = ti.Vector.field(2, ti.f32, shape=particles_limit)
 
-rest_length = ti.var(ti.f32, shape=(particles_limit, particles_limit))
-fixed = ti.var(ti.i32, shape=particles_limit)
+rest_length = ti.field(ti.f32, shape=(particles_limit, particles_limit))
+fixed = ti.field(ti.i32, shape=particles_limit)
 
 stiffness[None] = 10000
 damping[None] = 15
@@ -30,7 +30,7 @@ def update():
     n = num_particles[None]
     for i in range(n):
 
-        v[i] *= ti.exp(-dt * damping)
+        v[i] *= ti.exp(-dt * damping[None])
         force = G * mass
 
         for j in range(n):
@@ -64,8 +64,8 @@ def make_node(pos_x: ti.f32, pos_y: ti.f32, is_fixed: ti.i32):
     for i in range(curr):
         dist = (x[curr] - x[i]).norm()
         if dist <= conn_range:
-            rest_length[i, curr] = dist
-            rest_length[curr, i] = dist
+            rest_length[i, curr] = 0.1#dist
+            rest_length[curr, i] = 0.1#dist
 
 
 gui = ti.GUI('Mass Spring', res=(720, 720), background_color=0x000000)

@@ -3,8 +3,8 @@ import taichi as ti
 
 ti.init(debug=True)
 
-n = 64
-scatter = 8
+n = 128
+scatter = 4
 dt = 1e-3
 dx = 1
 diffusivity = 250
