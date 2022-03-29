@@ -20,6 +20,11 @@ def rand3():
 
 
 @ti.func
+def reflect_across(income, normal):
+    return income - 2 * (income.dot(normal)) * normal
+
+
+@ti.func
 def rand_diffuse_offset():
     dir = 2.0 * rand3() - ti.Vector([1.0, 1.0, 1.0])
 

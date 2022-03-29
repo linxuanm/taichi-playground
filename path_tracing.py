@@ -1,14 +1,15 @@
 import taichi as ti
+import numpy as np
 
 import ray_tracing_utils as rtu
 
 
-ti.init(debug=True)
+ti.init(debug=True, arch=ti.gpu)
 
 size = 800
 p_RR = 0.8
 max_bounce = 10
-samples_per_pixel = 4
+samples_per_pixel = 12
 
 camera = rtu.Camera(
     ti.Vector([0.0, 1.0, -5.0]),
@@ -36,13 +37,18 @@ scene.add(rtu.Sphere(
 )))
 
 scene.add(rtu.Sphere(
-    ti.Vector([0.7, 0.0, -0.5]),
-    0.5, (rtu.MAT_DIFFUSE, ti.Vector([1.0, 1.0, 1.0]))
+    ti.Vector([-0.8, 0.0, -1.0]),
+    0.5, (rtu.MAT_METAL, ti.Vector([0.6, 0.8, 0.8]))
 ))
 
 scene.add(rtu.Sphere(
-    ti.Vector([-0.8, 0.2, -1.0]),
+    ti.Vector([0.7, 0.2, -0.5]),
     0.7, (rtu.MAT_DIFFUSE, ti.Vector([0.6, 0.8, 0.8]))
+))
+
+scene.add(rtu.Sphere(
+    ti.Vector([0.25, -0.25, -1.5]),
+    0.25, (rtu.MAT_LIGHT, ti.Vector([0.0, 0.0, 1.0]) * 5)
 ))
 
 pixels = ti.Vector.field(3, ti.f32, shape=(size, size))
@@ -60,7 +66,7 @@ def render():
             hit_color = ray_trace(ray)
             color += hit_color
 
-        pixels[i, j] = color / samples_per_pixel
+        pixels[i, j] += color / samples_per_pixel
 
 
 @ti.func
@@ -86,6 +92,10 @@ def ray_trace(ray):
             target = hit_pos + hit_normal + rtu.rand_diffuse_offset()
             direction = (target - origin).normalized()
             bright *= c
+        elif mat == rtu.MAT_METAL:
+            origin = hit_pos
+            direction = rtu.reflect_across(direction, hit_normal)
+            bright *= c
 
         bright /= p_RR
 
@@ -94,8 +104,10 @@ def ray_trace(ray):
 
 gui = ti.GUI('Path Tracing Demo', res=(size, size))
 
+frame = 0
 while gui.running:
     render()
 
-    gui.set_image(pixels)
+    frame += 1
+    gui.set_image(np.sqrt(pixels.to_numpy() / frame)) # gamma correction
     gui.show()
