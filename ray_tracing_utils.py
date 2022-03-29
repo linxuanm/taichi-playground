@@ -14,6 +14,22 @@ def zero():
     return ti.Vector([0.0, 0.0, 0.0])
 
 
+@ti.func
+def rand3():
+    return ti.Vector([ti.random(), ti.random(), ti.random()])
+
+
+@ti.func
+def rand_diffuse_offset():
+    dir = 2.0 * rand3() - ti.Vector([1.0, 1.0, 1.0])
+
+    # for uniform angular offset cuz just normalizing is not uniform
+    while dir.norm() >= 1:
+        dir = 2.0 * rand3() - ti.Vector([1.0, 1.0, 1.0])
+
+    return dir.normalized()
+
+
 @ti.data_oriented
 class Ray:
 
@@ -82,7 +98,7 @@ class Sphere(SceneObject):
             if hit_normal.dot(ray.direction) > 0: # view from inside of sphere
                 hit_normal = -hit_normal
 
-        return hit, hit_pos, hit_normal, self.mat, self.color
+        return root, hit, hit_pos, hit_normal, self.mat, self.color
 
 
 @ti.data_oriented
@@ -104,18 +120,19 @@ class Scene:
         color = zero()
 
         for i in ti.static(range(len(self.objs))):
-            curr_hit, curr_hit_pos, curr_hit_normal, curr_mat, curr_color = \
-                self.objs[i].hit_ray(ray)
+            (
+                root, curr_hit, curr_hit_pos,
+                curr_hit_normal, curr_mat, curr_color
+            ) = self.objs[i].hit_ray(ray)
 
-            dist = (curr_hit_pos - ray.origin).norm()
-            if curr_hit and dist < closest:
+            if curr_hit and root < closest:
                 hit = curr_hit
                 hit_pos = curr_hit_pos
                 hit_normal = curr_hit_normal
                 mat = curr_mat
                 color = curr_color
 
-                closest = dist
+                closest = root
 
         return hit, hit_pos, hit_normal, mat, color
 
