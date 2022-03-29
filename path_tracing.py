@@ -8,7 +8,7 @@ ti.init(debug=True, arch=ti.gpu)
 
 size = 800
 p_RR = 0.8
-max_bounce = 15
+max_bounce = 10
 samples_per_pixel = 20
 refraction = 1.5
 
@@ -49,7 +49,7 @@ scene.add(rtu.Sphere(
 
 scene.add(rtu.Sphere(
     ti.Vector([0.25, -0.25, -1.5]),
-    0.25, (rtu.MAT_LIGHT, ti.Vector([0.0, 0.0, 1.0]) * 5)
+    0.25, (rtu.MAT_DIFFUSE, ti.Vector([0.0, 0.0, 1.0]))
 ))
 
 pixels = ti.Vector.field(3, ti.f32, shape=(size, size))
@@ -123,13 +123,11 @@ def ray_trace(ray):
 
 gui = ti.GUI('Path Tracing Demo', res=(size, size))
 
-frame = 0
+frame = 0.0
 while gui.running:
     render()
 
-    frame += 1
+    frame += 1.0
     gui.set_image(np.sqrt(pixels.to_numpy() / frame)) # gamma correction
-    gui.show()
 
-    if frame == 50:
-        gui.show('trace.png')
+    gui.show()
