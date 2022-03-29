@@ -8,8 +8,9 @@ ti.init(debug=True, arch=ti.gpu)
 
 size = 800
 p_RR = 0.8
-max_bounce = 10
-samples_per_pixel = 12
+max_bounce = 15
+samples_per_pixel = 20
+refraction = 1.5
 
 camera = rtu.Camera(
     ti.Vector([0.0, 1.0, -5.0]),
@@ -37,13 +38,13 @@ scene.add(rtu.Sphere(
 )))
 
 scene.add(rtu.Sphere(
-    ti.Vector([-0.8, 0.0, -1.0]),
-    0.5, (rtu.MAT_METAL, ti.Vector([0.6, 0.8, 0.8]))
+    ti.Vector([-0.6, 0.0, -1.0]),
+    0.5, (rtu.MAT_DIELECTRIC, ti.Vector([1.0, 1.0, 1.0]))
 ))
 
 scene.add(rtu.Sphere(
     ti.Vector([0.7, 0.2, -0.5]),
-    0.7, (rtu.MAT_DIFFUSE, ti.Vector([0.6, 0.8, 0.8]))
+    0.7, (rtu.MAT_METAL, ti.Vector([0.6, 0.8, 0.8]))
 ))
 
 scene.add(rtu.Sphere(
@@ -80,22 +81,40 @@ def ray_trace(ray):
         if ti.random() > p_RR:
             break
 
-        hit, hit_pos, hit_normal, mat, c = scene.get_ray_hit(
+        hit, hit_pos, hit_normal, inverted, mat, c = scene.get_ray_hit(
             rtu.Ray(origin, direction)
         )
 
         if mat == rtu.MAT_LIGHT:
             color = bright * c
             break
+
         elif mat == rtu.MAT_DIFFUSE:
             origin = hit_pos
             target = hit_pos + hit_normal + rtu.rand_diffuse_offset()
             direction = (target - origin).normalized()
             bright *= c
+
         elif mat == rtu.MAT_METAL:
             origin = hit_pos
             direction = rtu.reflect_across(direction, hit_normal)
             bright *= c
+
+        elif mat == rtu.MAT_DIELECTRIC:
+            refr = refraction
+            origin = hit_pos
+
+            if not inverted: # not inside to outside ray
+                refr = 1.0 / refr
+
+            sin = direction.cross(hit_normal).norm()
+            cos = hit_normal.dot(-direction)
+            if sin * refr > 1.0 or ti.random() < rtu.reflectance(cos, refr):
+                direction = rtu.reflect_across(direction, hit_normal)
+            else:
+                direction = rtu.refract_across(direction, hit_normal, refr)
+
+
 
         bright /= p_RR
 
@@ -111,3 +130,6 @@ while gui.running:
     frame += 1
     gui.set_image(np.sqrt(pixels.to_numpy() / frame)) # gamma correction
     gui.show()
+
+    if frame == 50:
+        gui.show('trace.png')

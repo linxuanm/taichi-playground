@@ -25,6 +25,23 @@ def reflect_across(income, normal):
 
 
 @ti.func
+def refract_across(income, normal, ratio):
+    cos = normal.dot(-income)
+    perpen = (income + cos * normal) * ratio
+    para = -ti.sqrt(ti.abs(1.0 - perpen.dot(perpen))) * normal
+    return (perpen + para).normalized()
+
+
+@ti.func
+def reflectance(cos, ratio):
+    coeff = (1.0 - ratio) / (1.0 + ratio)
+    coeff = coeff ** 2.0
+    coeff = coeff + (1.0 - coeff) * ti.pow((1 - cos), 5)
+
+    return coeff
+
+
+@ti.func
 def rand_diffuse_offset():
     dir = 2.0 * rand3() - ti.Vector([1.0, 1.0, 1.0])
 
@@ -81,6 +98,7 @@ class Sphere(SceneObject):
         root = 0.0
 
         hit = False
+        inverted = False
         hit_pos = zero()
         hit_normal = zero()
 
@@ -102,8 +120,9 @@ class Sphere(SceneObject):
 
             if hit_normal.dot(ray.direction) > 0: # view from inside of sphere
                 hit_normal = -hit_normal
+                inverted = True
 
-        return root, hit, hit_pos, hit_normal, self.mat, self.color
+        return root, hit, hit_pos, hit_normal, inverted, self.mat, self.color
 
 
 @ti.data_oriented
@@ -121,25 +140,28 @@ class Scene:
         hit = False
         hit_pos = zero()
         hit_normal = zero()
+        inverted = False
         mat = MAT_DIFFUSE
         color = zero()
 
         for i in ti.static(range(len(self.objs))):
             (
                 root, curr_hit, curr_hit_pos,
-                curr_hit_normal, curr_mat, curr_color
+                curr_hit_normal, curr_inverted,
+                curr_mat, curr_color
             ) = self.objs[i].hit_ray(ray)
 
             if curr_hit and root < closest:
                 hit = curr_hit
                 hit_pos = curr_hit_pos
                 hit_normal = curr_hit_normal
+                inverted = curr_inverted
                 mat = curr_mat
                 color = curr_color
 
                 closest = root
 
-        return hit, hit_pos, hit_normal, mat, color
+        return hit, hit_pos, hit_normal, inverted, mat, color
 
 
 @ti.data_oriented
